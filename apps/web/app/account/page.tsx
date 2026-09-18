@@ -1,11 +1,5 @@
-const items = [["PROFILE","Personal information and preferences"],["SECURITY","Password, sessions and two-factor authentication"],["MEMBERSHIPS","Subscriptions and saved creators"],["PURCHASES","Your premium purchases"],["PRIVACY","Visibility, data and account controls"]];
-
-export default function AccountPage() {
-  return (
-    <main className="shell page">
-      <nav className="nav"><a className="brand" href="/">◉ LOLLIPOP</a><div className="nav-links"><a href="/discover">Discover</a><a href="/creators">Creators</a><a href="/account">Account</a></div><button className="ghost-button">Sign in</button></nav>
-      <header className="page-header"><p className="eyebrow">YOUR SPACE</p><h1>Account<br /><span>control center.</span></h1><p>Privacy, security and membership controls in one place.</p></header>
-      <section className="account-list">{items.map(([title, detail]) => <div className="account-row" key={title}><div><p className="eyebrow">{title}</p><span>{detail}</span></div><b>›</b></div>)}</section>
-    </main>
-  );
-}
+"use client";
+import { useEffect, useState } from "react";
+const API=process.env.NEXT_PUBLIC_API_URL??"http://127.0.0.1:8000";
+type User={id:number;email:string;role:string;status:string};
+export default function AccountPage(){const [user,setUser]=useState<User|null>(null);const [error,setError]=useState("");useEffect(()=>{const t=localStorage.getItem("lollipop_access_token");if(!t){location.href="/login";return}fetch(API+"/api/v1/auth/me",{headers:{Authorization:"Bearer "+t}}).then(async r=>{if(!r.ok)throw new Error("Session expired");setUser(await r.json())}).catch(()=>{localStorage.removeItem("lollipop_access_token");setError("Your session has expired.");location.href="/login"})},[]);if(!user)return <main className="shell page"><header className="page-header"><p className="eyebrow">ACCOUNT</p><h1>Loading<span>…</span></h1><p>{error}</p></header></main>;return <main className="shell page"><nav className="nav"><a className="brand" href="/">◉ LOLLIPOP</a><div className="nav-links"><a href="/discover">Discover</a><a href="/creators">Creators</a></div><button className="ghost-button" onClick={()=>{localStorage.removeItem("lollipop_access_token");location.href="/login"}}>Sign out</button></nav><header className="page-header"><p className="eyebrow">AUTHENTICATED ACCOUNT</p><h1>Your <span>space.</span></h1><p>{user.email}</p></header><section className="account-list"><div className="account-row"><div><p className="eyebrow">ACCOUNT STATUS</p><span>{user.status} · {user.role}</span></div></div><div className="account-row"><div><p className="eyebrow">CREATOR WORKSPACE</p><span>Apply, save your profile and track verification.</span></div><a href="/creators">›</a></div></section></main>}
