@@ -32,7 +32,7 @@ def health() -> HealthResponse:
 @router.get("/features", response_model=FeatureResponse)
 def features() -> FeatureResponse:
     return FeatureResponse(
-        identity="FOUNDATION",
+        identity="FUNCTIONAL",
         creators="FOUNDATION",
         media="FOUNDATION",
         moderation="REQUIRED",
