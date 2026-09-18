@@ -58,13 +58,13 @@ export default function CreatorProfilePage() {
   }
 
   if (error || !creator) {
-    return <main className="shell page"><nav className="nav"><a className="brand" href="/">◉ LOLLIPOP</a><a href="/discover">Back to discover</a></nav><p className="error">{error || "Creator not found."}</p></main>;
+    return <main className="shell page"><nav className="nav"><a className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></a><a href="/discover">Back to discover</a></nav><p className="error">{error || "Creator not found."}</p></main>;
   }
 
   return (
     <main className="shell page">
       <nav className="nav">
-        <a className="brand" href="/">◉ LOLLIPOP</a>
+        <a className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></a>
         <div className="nav-links"><a href="/discover">Discover</a><a href="/account">Account</a></div>
       </nav>
 
