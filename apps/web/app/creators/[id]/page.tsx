@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-import { API, readJson } from "./api-client";
+import { API, readJson } from "../../api-client";
 
 type Plan = { price_cents: number; currency: string };
 type Creator = {
