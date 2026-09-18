@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -71,7 +72,7 @@ export default function MediaPage() {
   return (
     <main className="shell page">
       <nav className="nav">
-        <a className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></a>
+        <Link className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></Link>
         <div className="nav-links"><a href="/discover">Discover</a><a href="/account">Account</a></div>
       </nav>
 
@@ -79,7 +80,7 @@ export default function MediaPage() {
         <section className="auth-card">
           <p className="eyebrow">ACCESS</p>
           <h1>{error}</h1>
-          <a className="secondary-button" href="/login">Sign in</a>
+          <Link className="secondary-button" href={"/login?next=/media/" + params.id}>Sign in</Link>
         </section>
       ) : media ? (
         <section>
