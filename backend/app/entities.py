@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, String, Text, ForeignKey, BigInteger
+from sqlalchemy import DateTime, String, Text, ForeignKey, BigInteger, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -60,4 +60,26 @@ class AuditLog(Base):
     target_type: Mapped[str] = mapped_column(String(40))
     target_id: Mapped[str] = mapped_column(String(80))
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class CreatorSubscriptionPlan(Base):
+    __tablename__ = "creator_subscription_plans"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    price_cents: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", index=True)
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
