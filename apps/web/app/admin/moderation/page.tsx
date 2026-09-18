@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { API, readJson } from "../../api-client";
@@ -44,12 +45,12 @@ export default function AdminModerationPage() {
       setError("Administrator access required.");
       return;
     }
-    const data = await readJson(response);
-    if (!response.ok) {
-      setError(data.detail ?? "Could not load moderation queue.");
-      return;
+    try {
+      const data = await readJson<MediaItem[]>(response);
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load moderation queue.");
     }
-    setItems(data);
   }
 
   useEffect(() => {
@@ -78,13 +79,14 @@ export default function AdminModerationPage() {
       body: JSON.stringify(action === "reject" ? { reason } : {}),
     });
 
-    const data = await readJson(response);
-    if (!response.ok) {
-      setError(data.detail ?? "Moderation action failed.");
-    } else {
+    try {
+      await readJson(response);
       setItems((current) => current.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Moderation action failed.");
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
   }
 
   function formatSize(bytes: number) {
@@ -95,7 +97,7 @@ export default function AdminModerationPage() {
   return (
     <main className="shell page">
       <nav className="nav">
-        <a className="brand" href="/">◉ LOLLIPOP</a>
+        <Link className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></Link>
         <div className="nav-links">
           <a href="/account">Account</a>
           <a href="/admin/verifications">Verification</a>
