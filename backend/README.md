@@ -1,7 +1,20 @@
 # Lollipop Backend
 
-The backend will provide authentication, creator profiles, verification, media, moderation, subscriptions, purchases, messaging, payouts, reporting and audit domains.
+FastAPI API foundation for identity, creators, media, moderation, monetization, reporting and audit.
 
-Production media must never bypass age/identity verification, participant consent checks, moderation, access control or secure delivery.
+## Run locally
 
-Development repositories should contain only synthetic/demo media references — never real intimate content or identity documents.
+From the repository root:
+
+```bash
+python -m venv .venv
+# Windows: .venv\\Scripts\\Activate.ps1
+pip install -r backend/requirements.txt
+python -m uvicorn backend.app.main:app --reload --port 8000
+```
+
+Health endpoint: `GET /api/v1/health`.
+
+The SQL model in `backend/app/models.sql` is a foundation only. Production deployment should add migrations, connection pooling, secrets management, transactional service boundaries and provider integrations.
+
+No raw identity documents or real intimate media belong in this repository.
