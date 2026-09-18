@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -50,6 +51,22 @@ def _audit(db: Session, actor: User | None, action: str, media: Media, metadata:
 def _require_creator(user: User):
     if user.role != "CREATOR" or user.status != "ACTIVE":
         raise HTTPException(403, "Approved creator access is required")
+
+def _private_media_path(storage_key: str) -> Path:
+    root = Path(settings.media_storage_path).resolve()
+    candidate = (root / storage_key).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise HTTPException(404, "Media not found")
+    return candidate
+
+def _require_media_entitlement(db: Session, user: User, media: Media) -> None:
+    if can_view_media(db, user, media):
+        return
+    if media.status != "PUBLISHED":
+        raise HTTPException(404, "Media not found")
+    raise HTTPException(403, "Entitlement is required to access this media")
 
 @router.post("/upload", response_model=MediaOut, status_code=201)
 def upload_media(
@@ -116,15 +133,23 @@ def list_my_media(user: User = Depends(current_user), db: Session = Depends(get_
         query = query.where(Media.creator_id == user.id)
     return [_out(row) for row in db.scalars(query).all()]
 
+@router.get("/{media_id}/stream")
+def stream_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    media = db.get(Media, media_id)
+    if not media:
+        raise HTTPException(404, "Media not found")
+    _require_media_entitlement(db, user, media)
+    media_path = _private_media_path(media.storage_key)
+    if not media_path.is_file():
+        raise HTTPException(404, "Media not found")
+    return FileResponse(media_path, media_type=media.content_type)
+
 @router.get("/{media_id}", response_model=MediaOut)
 def get_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     media = db.get(Media, media_id)
     if not media:
         raise HTTPException(404, "Media not found")
-    if not can_view_media(db, user, media):
-        if media.status != "PUBLISHED":
-            raise HTTPException(404, "Media not found")
-        raise HTTPException(403, "Entitlement is required to access this media")
+    _require_media_entitlement(db, user, media)
     return _out(media)
 
 @router.post("/{media_id}/approve", response_model=MediaOut)
