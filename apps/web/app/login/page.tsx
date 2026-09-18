@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
+import { API, readJson } from "./api-client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
@@ -11,7 +11,7 @@ export default function LoginPage() {
     e.preventDefault(); setBusy(true); setError("");
     try {
       const r = await fetch(API + "/api/v1/auth/login", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email,password})});
-      const data = await r.json(); if (!r.ok) throw new Error(data.detail ?? "Sign in failed");
+      const data = await readJson(r); if (!r.ok) throw new Error(data.detail ?? "Sign in failed");
       localStorage.setItem("lollipop_access_token", data.access_token); window.location.href="/account";
     } catch (err) { setError(err instanceof Error ? err.message : "Sign in failed"); } finally { setBusy(false); }
   }
