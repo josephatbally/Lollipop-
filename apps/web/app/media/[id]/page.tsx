@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
+import { API, readJson } from "./api-client";
 
 type Media = {
   id: number;
@@ -37,7 +37,7 @@ export default function MediaPage() {
         const metadataResponse = await fetch(API + "/api/v1/media/" + params.id, {
           headers: { Authorization: "Bearer " + token },
         });
-        const metadata = await metadataResponse.json();
+        const metadata = await readJson(metadataResponse);
         if (!metadataResponse.ok) throw new Error(metadata.detail ?? "Media is not available.");
         setMedia(metadata);
 
@@ -45,7 +45,7 @@ export default function MediaPage() {
           headers: { Authorization: "Bearer " + token },
         });
         if (!streamResponse.ok) {
-          const detail = await streamResponse.json().catch(() => ({}));
+          const detail = await readJson(streamResponse).catch(() => ({}));
           throw new Error(detail.detail ?? "Could not load the media stream.");
         }
         const blob = await streamResponse.blob();
