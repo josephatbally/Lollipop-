@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
+import { API, readJson } from "./api-client";
 
 type MediaItem = {
   id: number;
@@ -44,7 +44,7 @@ export default function AdminModerationPage() {
       setError("Administrator access required.");
       return;
     }
-    const data = await response.json();
+    const data = await readJson(response);
     if (!response.ok) {
       setError(data.detail ?? "Could not load moderation queue.");
       return;
@@ -78,7 +78,7 @@ export default function AdminModerationPage() {
       body: JSON.stringify(action === "reject" ? { reason } : {}),
     });
 
-    const data = await response.json();
+    const data = await readJson(response);
     if (!response.ok) {
       setError(data.detail ?? "Moderation action failed.");
     } else {
