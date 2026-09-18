@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ServiceWorkerRegistration from "./service-worker-registration";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,25 +6,15 @@ export const metadata: Metadata = {
   description: "A futuristic creator media experience.",
   applicationName: "Lollipop",
   manifest: "/manifest.webmanifest",
-  themeColor: "#0A0E18",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Lollipop"
-  },
-  icons: {
-    icon: "/icons/lollipop.svg",
-    apple: "/icons/lollipop.svg"
-  }
+  themeColor: "#07070B",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Lollipop" },
+  icons: { icon: "/icons/lollipop.svg", apple: "/icons/lollipop.svg" }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>
-        {children}
-        <ServiceWorkerRegistration />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
