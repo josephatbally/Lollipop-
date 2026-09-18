@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     access_token_minutes: int = 60
     media_storage_path: str = "./private_media"
     max_media_size_bytes: int = 524288000
+    # Development mode: authenticated users may view published media without a subscription.
+    # Set LOLLIPOP_FREE_MEDIA_ACCESS=false before real monetized distribution.
+    free_media_access: bool = True
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
