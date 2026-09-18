@@ -24,6 +24,19 @@ def make_user(email, role="CUSTOMER"):
     db.add(user); db.commit(); db.refresh(user); db.close()
     return user
 
+def make_creator(email, verified=True):
+    user = make_user(email, "CREATOR")
+    db = SessionLocal()
+    db.add(CreatorApplication(
+        user_id=user.id,
+        display_name="Creator",
+        handle=email.split("@")[0],
+        status="APPROVED" if verified else "SUBMITTED",
+        verification_status="VERIFIED" if verified else "PENDING",
+    ))
+    db.commit(); db.close()
+    return user
+
 def make_video():
     return b"\x00\x00\x00\x18ftypisom" + b"\x00" * 32
 
@@ -42,12 +55,12 @@ def test_customer_cannot_upload():
     assert response.status_code == 403
 
 def test_unverified_creator_cannot_upload():
-    user = make_user("applicant@example.com")
+    user = make_creator("applicant@example.com", verified=False)
     response = upload(user)
     assert response.status_code == 403
 
 def test_approved_creator_can_upload_and_enters_review():
-    user = make_user("creator@example.com", "CREATOR")
+    user = make_creator("creator@example.com")
     response = upload(user)
     assert response.status_code == 201
     body = response.json()
@@ -61,8 +74,19 @@ def test_approved_creator_can_upload_and_enters_review():
     assert db.query(AuditLog).filter_by(action="MEDIA_UPLOADED_FOR_REVIEW").count() == 1
     db.close()
 
+def test_suspended_verified_creator_cannot_upload():
+    user = make_creator("suspended@example.com")
+    db = SessionLocal()
+    row = db.get(User, user.id)
+    row.status = "SUSPENDED"
+    db.commit(); db.close()
+
+    response = upload(user)
+
+    assert response.status_code == 403
+
 def test_admin_can_approve_and_creator_can_publish():
-    creator = make_user("creator2@example.com", "CREATOR")
+    creator = make_creator("creator2@example.com")
     response = upload(creator)
     media_id = response.json()["id"]
     admin = make_user("admin@example.com", "ADMIN")
@@ -73,8 +97,23 @@ def test_admin_can_approve_and_creator_can_publish():
     assert published.status_code == 200
     assert published.json()["status"] == "PUBLISHED"
 
+def test_suspended_creator_cannot_publish_approved_media():
+    creator = make_creator("creator-suspended@example.com")
+    media_id = upload(creator).json()["id"]
+    admin = make_user("admin-suspended@example.com", "ADMIN")
+    assert client.post(f"/api/v1/media/{media_id}/approve", headers=auth(admin)).status_code == 200
+
+    db = SessionLocal()
+    row = db.get(User, creator.id)
+    row.status = "SUSPENDED"
+    db.commit(); db.close()
+
+    response = client.post(f"/api/v1/media/{media_id}/publish", headers=auth(creator))
+
+    assert response.status_code == 403
+
 def test_admin_can_reject_media():
-    creator = make_user("creator3@example.com", "CREATOR")
+    creator = make_creator("creator3@example.com")
     media_id = upload(creator).json()["id"]
     admin = make_user("admin2@example.com", "ADMIN")
     response = client.post(f"/api/v1/media/{media_id}/reject", headers=auth(admin), json={"reason":"Policy review required"})
@@ -83,7 +122,7 @@ def test_admin_can_reject_media():
     assert response.json()["moderation_reason"] == "Policy review required"
 
 def test_rejected_media_cannot_publish():
-    creator = make_user("creator4@example.com", "CREATOR")
+    creator = make_creator("creator4@example.com")
     media_id = upload(creator).json()["id"]
     admin = make_user("admin3@example.com", "ADMIN")
     client.post(f"/api/v1/media/{media_id}/reject", headers=auth(admin), json={"reason":"Not approved"})
