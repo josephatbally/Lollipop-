@@ -6,12 +6,28 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .auth import admin_user
 from .db import get_db
-from .entities import AuditLog, CreatorApplication, User
+from .entities import AuditLog, ConsentRecord, CreatorApplication, Media, User
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 class ReviewIn(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
+
+class MediaModerationOut(BaseModel):
+    id: int
+    creator_id: int
+    creator_email: str
+    title: str
+    description: str | None
+    original_filename: str
+    content_type: str
+    size_bytes: int
+    checksum_sha256: str
+    status: str
+    consent_records: int
+    moderation_reason: str | None
+    created_at: datetime
+    reviewed_at: datetime | None
 
 class ApplicationOut(BaseModel):
     id: int
@@ -39,6 +55,35 @@ def pending_creator_applications(admin: User = Depends(admin_user), db: Session 
         .where(CreatorApplication.status == "SUBMITTED", CreatorApplication.verification_status == "PENDING")
         .order_by(CreatorApplication.submitted_at.asc())).all()
     return [_out(app, user) for app, user in rows]
+
+@router.get("/media", response_model=list[MediaModerationOut])
+def pending_media_moderation(admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    rows = db.execute(
+        select(Media, User.email)
+        .join(User, User.id == Media.creator_id)
+        .where(Media.status == "REVIEW")
+        .order_by(Media.created_at.asc())
+    ).all()
+    result = []
+    for media, creator_email in rows:
+        count = db.query(ConsentRecord).filter(ConsentRecord.media_id == media.id).count()
+        result.append(MediaModerationOut(
+            id=media.id,
+            creator_id=media.creator_id,
+            creator_email=creator_email,
+            title=media.title,
+            description=media.description,
+            original_filename=media.original_filename,
+            content_type=media.content_type,
+            size_bytes=media.size_bytes,
+            checksum_sha256=media.checksum_sha256,
+            status=media.status,
+            consent_records=count,
+            moderation_reason=media.moderation_reason,
+            created_at=media.created_at,
+            reviewed_at=media.reviewed_at,
+        ))
+    return result
 
 def _get(app_id: int, db: Session) -> CreatorApplication:
     app = db.get(CreatorApplication, app_id)
