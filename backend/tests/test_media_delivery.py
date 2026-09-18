@@ -2,7 +2,7 @@ import io, json, shutil
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.db import Base, engine, SessionLocal
-from backend.app.entities import Media, User
+from backend.app.entities import CreatorApplication, Media, User
 from backend.app.security import create_access_token, hash_password
 from backend.app.config import settings
 
@@ -22,6 +22,15 @@ def make_user(email, role="CUSTOMER"):
     db.add(user)
     db.commit()
     db.refresh(user)
+    if role == "CREATOR":
+        db.add(CreatorApplication(
+            user_id=user.id,
+            display_name="Creator",
+            handle=email.split("@")[0],
+            status="APPROVED",
+            verification_status="VERIFIED",
+        ))
+        db.commit()
     db.close()
     return user
 
