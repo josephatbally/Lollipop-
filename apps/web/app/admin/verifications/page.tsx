@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { API, readJson } from "./api-client";
+import { API, readJson } from "../../api-client";
 type Application={id:number;user_id:number;email:string;display_name:string;handle:string;bio?:string|null;status:string;verification_status:string;submitted_at?:string|null;reviewed_at?:string|null;review_reason?:string|null};
 
 export default function AdminVerificationsPage(){
