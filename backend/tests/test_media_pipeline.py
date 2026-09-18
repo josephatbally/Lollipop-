@@ -83,7 +83,7 @@ def test_suspended_verified_creator_cannot_upload():
 
     response = upload(user)
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 def test_admin_can_approve_and_creator_can_publish():
     creator = make_creator("creator2@example.com")
@@ -110,7 +110,7 @@ def test_suspended_creator_cannot_publish_approved_media():
 
     response = client.post(f"/api/v1/media/{media_id}/publish", headers=auth(creator))
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 def test_admin_can_reject_media():
     creator = make_creator("creator3@example.com")
