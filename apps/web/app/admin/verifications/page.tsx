@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
 type Application={id:number;user_id:number;email:string;display_name:string;handle:string;bio?:string|null;status:string;verification_status:string;submitted_at?:string|null;reviewed_at?:string|null;review_reason?:string|null};
 
 export default function AdminVerificationsPage(){
