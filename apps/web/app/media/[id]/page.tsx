@@ -71,7 +71,7 @@ export default function MediaPage() {
   return (
     <main className="shell page">
       <nav className="nav">
-        <a className="brand" href="/">◉ LOLLIPOP</a>
+        <a className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></a>
         <div className="nav-links"><a href="/discover">Discover</a><a href="/account">Account</a></div>
       </nav>
 
