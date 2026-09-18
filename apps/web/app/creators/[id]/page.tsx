@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
+import { API, readJson } from "./api-client";
 
 type Plan = { price_cents: number; currency: string };
 type Creator = {
@@ -35,12 +35,12 @@ export default function CreatorProfilePage() {
     if (!params.id) return;
     Promise.all([
       fetch(API + "/api/v1/creators/" + params.id).then(async r => {
-        const d = await r.json();
+        const d = await readJson(r);
         if (!r.ok) throw new Error(d.detail ?? "Creator not found.");
         return d;
       }),
       fetch(API + "/api/v1/creators/" + params.id + "/media").then(async r => {
-        const d = await r.json();
+        const d = await readJson(r);
         if (!r.ok) throw new Error(d.detail ?? "Could not load media.");
         return d;
       }),
