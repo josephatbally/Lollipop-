@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .auth import current_user
+from .config import settings
 from .db import get_db
 from .entities import AuditLog, CreatorApplication, CreatorSubscriptionPlan, Media, Subscription, User
 
@@ -56,6 +57,10 @@ def can_view_media(db: Session, user: User, media: Media) -> bool:
     if media.status != "PUBLISHED":
         return False
     if media.creator_id == user.id:
+        return True
+    # Development access bypasses subscription entitlement but still requires
+    # authentication and a published media item. Disable before monetized launch.
+    if settings.free_media_access:
         return True
     if media.access_level == "PUBLIC":
         return True
