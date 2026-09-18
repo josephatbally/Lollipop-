@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .auth import current_user
 from .db import get_db
-from .entities import AuditLog, CreatorSubscriptionPlan, Media, Subscription, User
+from .entities import AuditLog, CreatorApplication, CreatorSubscriptionPlan, Media, Subscription, User
 
 router = APIRouter(prefix="/api/v1", tags=["subscriptions"])
 
@@ -32,6 +32,16 @@ def _audit(db, actor, action, target_type, target_id, metadata=None):
     db.add(AuditLog(actor_user_id=actor.id, action=action, target_type=target_type,
                     target_id=str(target_id), metadata_json=json.dumps(metadata or {})))
 
+def _is_verified_active_creator(db: Session, creator: User) -> bool:
+    if creator.role != "CREATOR" or creator.status != "ACTIVE":
+        return False
+    application = db.scalar(select(CreatorApplication).where(CreatorApplication.user_id == creator.id))
+    return bool(
+        application
+        and application.status == "APPROVED"
+        and application.verification_status == "VERIFIED"
+    )
+
 def has_active_subscription(db: Session, customer_id: int, creator_id: int) -> bool:
     return db.scalar(select(Subscription).where(
         Subscription.customer_id == customer_id,
@@ -41,10 +51,12 @@ def has_active_subscription(db: Session, customer_id: int, creator_id: int) -> b
     )) is not None
 
 def can_view_media(db: Session, user: User, media: Media) -> bool:
-    if media.creator_id == user.id or user.role == "ADMIN":
+    if user.role == "ADMIN":
         return True
     if media.status != "PUBLISHED":
         return False
+    if media.creator_id == user.id:
+        return True
     if media.access_level == "PUBLIC":
         return True
     if media.access_level == "SUBSCRIBERS":
@@ -53,7 +65,7 @@ def can_view_media(db: Session, user: User, media: Media) -> bool:
 
 @router.put("/creators/me/subscription-plan", response_model=PlanOut)
 def set_subscription_plan(data: PlanIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    if user.role != "CREATOR":
+    if not _is_verified_active_creator(db, user):
         raise HTTPException(403, "Approved creator access is required")
     currency = data.currency.upper()
     row = db.scalar(select(CreatorSubscriptionPlan).where(CreatorSubscriptionPlan.creator_id == user.id))
@@ -82,7 +94,7 @@ def subscribe(creator_id: int, user: User = Depends(current_user), db: Session =
     if user.role != "CUSTOMER":
         raise HTTPException(403, "Customer access is required")
     creator = db.get(User, creator_id)
-    if creator is None or creator.role != "CREATOR" or creator.status != "ACTIVE":
+    if creator is None or not _is_verified_active_creator(db, creator):
         raise HTTPException(404, "Creator not found")
     plan = db.scalar(select(CreatorSubscriptionPlan).where(
         CreatorSubscriptionPlan.creator_id == creator_id,
