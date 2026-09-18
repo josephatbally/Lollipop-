@@ -1,4 +1,6 @@
-from datetime import datetime\n\nfrom fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,17 +11,17 @@ from .entities import CreatorApplication, CreatorSubscriptionPlan, Media, User
 router = APIRouter(prefix="/api/v1/creators", tags=["creators"])
 
 
+class PlanSummaryOut(BaseModel):
+    price_cents: int
+    currency: str
+
+
 class CreatorSummaryOut(BaseModel):
     id: int
     display_name: str
     handle: str
     bio: str | None
-    subscription_plan: "PlanSummaryOut | None"
-
-
-class PlanSummaryOut(BaseModel):
-    price_cents: int
-    currency: str
+    subscription_plan: PlanSummaryOut | None
 
 
 class CreatorMediaOut(BaseModel):
@@ -36,12 +38,33 @@ class CreatorProfileOut(CreatorSummaryOut):
     media_count: int
 
 
+def _verified_creator_query(creator_id: int):
+    return (
+        select(User, CreatorApplication, CreatorSubscriptionPlan)
+        .join(CreatorApplication, CreatorApplication.user_id == User.id)
+        .outerjoin(
+            CreatorSubscriptionPlan,
+            CreatorSubscriptionPlan.creator_id == User.id,
+        )
+        .where(
+            User.id == creator_id,
+            User.role == "CREATOR",
+            User.status == "ACTIVE",
+            CreatorApplication.status == "APPROVED",
+            CreatorApplication.verification_status == "VERIFIED",
+        )
+    )
+
+
 @router.get("", response_model=list[CreatorSummaryOut])
 def list_creators(db: Session = Depends(get_db)):
     rows = db.execute(
         select(User, CreatorApplication, CreatorSubscriptionPlan)
         .join(CreatorApplication, CreatorApplication.user_id == User.id)
-        .outerjoin(CreatorSubscriptionPlan, CreatorSubscriptionPlan.creator_id == User.id)
+        .outerjoin(
+            CreatorSubscriptionPlan,
+            CreatorSubscriptionPlan.creator_id == User.id,
+        )
         .where(
             User.role == "CREATOR",
             User.status == "ACTIVE",
@@ -58,8 +81,12 @@ def list_creators(db: Session = Depends(get_db)):
             handle=application.handle,
             bio=application.bio,
             subscription_plan=(
-                PlanSummaryOut(price_cents=plan.price_cents, currency=plan.currency)
-                if plan and plan.active else None
+                PlanSummaryOut(
+                    price_cents=plan.price_cents,
+                    currency=plan.currency,
+                )
+                if plan and plan.active
+                else None
             ),
         )
         for user, application, plan in rows
@@ -67,19 +94,8 @@ def list_creators(db: Session = Depends(get_db)):
 
 
 @router.get("/{creator_id}", response_model=CreatorProfileOut)
-def get_creator(creator_id: int, db: Session = __import__("fastapi").Depends(get_db)):
-    row = db.execute(
-        select(User, CreatorApplication, CreatorSubscriptionPlan)
-        .join(CreatorApplication, CreatorApplication.user_id == User.id)
-        .outerjoin(CreatorSubscriptionPlan, CreatorSubscriptionPlan.creator_id == User.id)
-        .where(
-            User.id == creator_id,
-            User.role == "CREATOR",
-            User.status == "ACTIVE",
-            CreatorApplication.status == "APPROVED",
-            CreatorApplication.verification_status == "VERIFIED",
-        )
-    ).first()
+def get_creator(creator_id: int, db: Session = Depends(get_db)):
+    row = db.execute(_verified_creator_query(creator_id)).first()
 
     if not row:
         raise HTTPException(404, "Creator not found")
@@ -98,15 +114,19 @@ def get_creator(creator_id: int, db: Session = __import__("fastapi").Depends(get
         handle=application.handle,
         bio=application.bio,
         subscription_plan=(
-            PlanSummaryOut(price_cents=plan.price_cents, currency=plan.currency)
-            if plan and plan.active else None
+            PlanSummaryOut(
+                price_cents=plan.price_cents,
+                currency=plan.currency,
+            )
+            if plan and plan.active
+            else None
         ),
         media_count=media_count,
     )
 
 
 @router.get("/{creator_id}/media", response_model=list[CreatorMediaOut])
-def list_creator_media(creator_id: int, db: Session = __import__("fastapi").Depends(get_db)):
+def list_creator_media(creator_id: int, db: Session = Depends(get_db)):
     exists = db.scalar(
         select(User.id)
         .join(CreatorApplication, CreatorApplication.user_id == User.id)
@@ -123,7 +143,10 @@ def list_creator_media(creator_id: int, db: Session = __import__("fastapi").Depe
 
     rows = db.scalars(
         select(Media)
-        .where(Media.creator_id == creator_id, Media.status == "PUBLISHED")
+        .where(
+            Media.creator_id == creator_id,
+            Media.status == "PUBLISHED",
+        )
         .order_by(Media.created_at.desc())
     ).all()
 
