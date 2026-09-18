@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { API, readJson } from "./api-client";
+import { API, readJson } from "../../api-client";
 
 type MediaItem = {
   id: number;
