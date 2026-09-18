@@ -1,7 +1,104 @@
 "use client";
-import { FormEvent,useEffect,useState } from "react";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { API, readJson } from "../api-client";
-export default function CreatorsPage(){const [data,setData]=useState({display_name:"",handle:"",bio:""});const [status,setStatus]=useState("NOT_STARTED");const [verification,setVerification]=useState("NOT_STARTED");const [msg,setMsg]=useState("");const [busy,setBusy]=useState(false);useEffect(()=>{const t=localStorage.getItem("lollipop_access_token");if(!t){location.href="/login";return}fetch(API+"/api/v1/auth/creator-application",{headers:{Authorization:"Bearer "+t}}).then(async r=>{if(r.ok){const d=await readJson(r);setData({display_name:d.display_name,handle:d.handle,bio:d.bio??""});setStatus(d.status);setVerification(d.verification_status)}})},[]);
-async function save(e:FormEvent){e.preventDefault();const t=localStorage.getItem("lollipop_access_token");if(!t)return;setBusy(true);setMsg("");const r=await fetch(API+"/api/v1/auth/creator-application",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+t},body:JSON.stringify(data)});const d=await readJson(r);if(!r.ok)setMsg(d.detail??"Could not save");else{setStatus(d.status);setVerification(d.verification_status);setMsg("Application saved.");}setBusy(false)}
-async function submit(){const t=localStorage.getItem("lollipop_access_token");if(!t)return;setBusy(true);const r=await fetch(API+"/api/v1/auth/creator-application/submit",{method:"POST",headers:{Authorization:"Bearer "+t}});const d=await readJson(r);if(!r.ok)setMsg(d.detail??"Could not submit");else{setStatus(d.status);setVerification(d.verification_status);setMsg("Application submitted for verification.");}setBusy(false)}
-return <main className="shell page"><nav className="nav"><a className="brand" href="/">◉ LOLLIPOP</a><div className="nav-links"><a href="/discover">Discover</a><a href="/account">Account</a></div></nav><header className="page-header"><p className="eyebrow">CREATOR MODE</p><h1>Build your<br/><span>dimension.</span></h1><p>Complete your creator profile, then submit it for the verification workflow.</p></header><section className="auth-card"><p className="eyebrow">APPLICATION · {status}</p><p>Verification: <strong>{verification}</strong></p><form onSubmit={save}><input placeholder="Display name" value={data.display_name} onChange={e=>setData({...data,display_name:e.target.value})} required/><input placeholder="Handle (letters, numbers, underscore)" value={data.handle} onChange={e=>setData({...data,handle:e.target.value})} required/><textarea placeholder="Bio" value={data.bio} onChange={e=>setData({...data,bio:e.target.value})} rows={5}/><button className="primary-button" disabled={busy||status==="SUBMITTED"}>{busy?"Saving…":"Save application"}</button></form>{status!=="SUBMITTED"&&<button className="secondary-button" onClick={submit} disabled={busy}>Submit for verification</button>}{msg&&<p className="auth-switch">{msg}</p>}</section></main>}
+
+type Plan = { price_cents: number; currency: string };
+type Creator = {
+  id: number;
+  display_name: string;
+  handle: string;
+  bio?: string | null;
+  subscription_plan?: Plan | null;
+};
+
+export default function CreatorsPage() {
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(API + "/api/v1/creators");
+      const data = await readJson<Creator[]>(response);
+      setCreators(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load creators.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  return (
+    <main className="shell page">
+      <nav className="nav">
+        <Link className="brand" href="/" aria-label="Lollipop home">
+          <img src="/icons/lollipop.svg" alt="" />
+          <span>LOLLIPOP</span>
+        </Link>
+        <div className="nav-links">
+          <Link href="/discover">Discover</Link>
+          <Link href="/creators">Creators</Link>
+          <Link href="/account">Account</Link>
+        </div>
+        <Link className="ghost-button" href="/login">Sign in</Link>
+      </nav>
+
+      <header className="page-header">
+        <p className="eyebrow">CREATORS</p>
+        <h1>Meet the people<br /><span>behind the dimension.</span></h1>
+        <p>Explore verified creators and open their published experiences.</p>
+      </header>
+
+      {error ? (
+        <section className="auth-card">
+          <p className="eyebrow">CONNECTION ERROR</p>
+          <h2>Could not reach the creator service.</h2>
+          <p>{error}</p>
+          <button className="secondary-button" onClick={load}>Try again</button>
+        </section>
+      ) : (
+        <section className="creator-grid">
+          {loading ? (
+            <div className="auth-card">
+              <p className="eyebrow">CREATORS</p>
+              <h2>Loading creators…</h2>
+            </div>
+          ) : creators.length === 0 ? (
+            <div className="auth-card">
+              <p className="eyebrow">CREATORS</p>
+              <h2>No creators are published yet.</h2>
+              <p>Verified creator profiles will appear here when they are ready.</p>
+              <Link className="secondary-button" href="/creators/apply">Become a creator</Link>
+            </div>
+          ) : (
+            creators.map((creator, index) => (
+              <article className={"creator-card " + ["violet", "cyan", "rose"][index % 3]} key={creator.id}>
+                <div className="avatar">{creator.display_name.slice(0, 1).toUpperCase()}</div>
+                <div>
+                  <h2>{creator.display_name}</h2>
+                  <p>@{creator.handle}</p>
+                  {creator.bio && <p>{creator.bio}</p>}
+                  {creator.subscription_plan && (
+                    <p>
+                      {creator.subscription_plan.currency}{" "}
+                      {(creator.subscription_plan.price_cents / 100).toFixed(2)} / month
+                    </p>
+                  )}
+                </div>
+                <Link className="secondary-button" href={"/creators/" + creator.id}>View</Link>
+              </article>
+            ))
+          )}
+        </section>
+      )}
+    </main>
+  );
+}
