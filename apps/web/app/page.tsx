@@ -69,7 +69,7 @@ export default function Home() {
           <p className="hero-text">A cinematic home for creators, communities and premium video experiences.</p>
           <div className="actions">
             <a className="primary-button" href="/discover">Explore experiences</a>
-            <a className="secondary-button" href="/creators">Become a creator</a>
+            <a className="secondary-button" href="/creators/apply">Become a creator</a>
           </div>
           <div className="signal"><i /> Platform status <b>ONLINE</b><em>•</em> Privacy-first</div>
         </div>
