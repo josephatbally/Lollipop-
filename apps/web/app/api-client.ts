@@ -1,8 +1,35 @@
-export const API =
-  process.env.NEXT_PUBLIC_API_URL ??
-  (typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
-    : "http://127.0.0.1:8000");
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+function resolveApiUrl(): string {
+  if (typeof window === "undefined") {
+    return configuredApiUrl || "http://127.0.0.1:8000";
+  }
+
+  const browserHost = window.location.hostname;
+
+  if (configuredApiUrl) {
+    try {
+      const configured = new URL(configuredApiUrl);
+      const isLoopback =
+        configured.hostname === "127.0.0.1" ||
+        configured.hostname === "localhost";
+
+      // Keep LAN testing portable even when .env.local still points at loopback.
+      if (isLoopback && browserHost !== "127.0.0.1" && browserHost !== "localhost") {
+        configured.hostname = browserHost;
+        return configured.origin;
+      }
+
+      return configured.origin;
+    } catch {
+      // Fall through to the browser-derived development URL.
+    }
+  }
+
+  return `${window.location.protocol}//${browserHost}:8000`;
+}
+
+export const API = resolveApiUrl();
 
 export async function readJson<T = any>(response: Response): Promise<T> {
   const contentType = response.headers.get("content-type") ?? "";
