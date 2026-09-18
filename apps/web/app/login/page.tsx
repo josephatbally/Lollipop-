@@ -1,0 +1,19 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
+  const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault(); setBusy(true); setError("");
+    try {
+      const r = await fetch(API + "/api/v1/auth/login", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email,password})});
+      const data = await r.json(); if (!r.ok) throw new Error(data.detail ?? "Sign in failed");
+      localStorage.setItem("lollipop_access_token", data.access_token); window.location.href="/account";
+    } catch (err) { setError(err instanceof Error ? err.message : "Sign in failed"); } finally { setBusy(false); }
+  }
+  return <main className="shell page"><nav className="nav"><a className="brand" href="/">◉ LOLLIPOP</a><div className="nav-links"><a href="/discover">Discover</a><a href="/creators">Creators</a></div></nav><section className="auth-card"><p className="eyebrow">WELCOME BACK</p><h1>Enter your <span>dimension.</span></h1><form onSubmit={submit}><input aria-label="Email" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/><input aria-label="Password" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8}/>{error && <p className="error">{error}</p>}<button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button></form><p className="auth-switch">No account? <a href="/register">Create one</a></p></section></main>;
+}
