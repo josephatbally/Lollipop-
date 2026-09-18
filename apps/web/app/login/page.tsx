@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
-import { API, readJson } from "./api-client";
+import { API, readJson } from "../api-client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
