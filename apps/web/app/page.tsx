@@ -53,7 +53,7 @@ export default function Home() {
   return (
     <main className="shell">
       <nav className="nav">
-        <a className="brand" href="/">◉ LOLLIPOP</a>
+        <a className="brand" href="/" aria-label="Lollipop home"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></a>
         <div className="nav-links">
           <a href="/discover">Discover</a>
           <a href="/creators">Creators</a>
