@@ -1,39 +1,104 @@
-const experiences = [
-  { title: "Afterglow", creator: "Maya V.", meta: "4K • 12:48", tone: "violet" },
-  { title: "Neon Nights", creator: "Luna K.", meta: "4K • 08:21", tone: "cyan" },
-  { title: "Private Signal", creator: "Aria R.", meta: "1080p • 16:04", tone: "rose" }
-];
+"use client";
+
+import { useEffect, useState } from "react";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+type Creator = {
+  id: number;
+  display_name: string;
+  handle: string;
+  bio?: string | null;
+  subscription_plan?: { price_cents: number; currency: string } | null;
+};
+type Media = {
+  id: number;
+  creator_id: number;
+  title: string;
+  description?: string | null;
+  content_type: string;
+  size_bytes: number;
+  access_level: string;
+};
+type Experience = Media & { creator: Creator };
 
 export default function Home() {
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const creatorsResponse = await fetch(API + "/api/v1/creators");
+        const creators = await creatorsResponse.json();
+        if (!creatorsResponse.ok) throw new Error(creators.detail ?? "Could not load experiences.");
+        const creatorList = creators as Creator[];
+        const results = await Promise.all(creatorList.map(async creator => {
+          const response = await fetch(API + "/api/v1/creators/" + creator.id + "/media");
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail ?? "Could not load creator media.");
+          return (data as Media[]).map(media => ({ ...media, creator }));
+        }));
+        setExperiences(results.flat().slice(0, 6));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load experiences.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <main className="shell">
       <nav className="nav">
-        <div className="brand"><span className="brand-mark">●</span> LOLLIPOP</div>
-        <div className="nav-links"><a href="#discover">Discover</a><a href="#creators">Creators</a><a href="#membership">Membership</a></div>
-        <button className="ghost-button">Sign in</button>
+        <a className="brand" href="/">◉ LOLLIPOP</a>
+        <div className="nav-links">
+          <a href="/discover">Discover</a>
+          <a href="/creators">Creators</a>
+          <a href="/account">Account</a>
+        </div>
+        <a className="ghost-button" href="/login">Sign in</a>
       </nav>
+
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">THE CREATOR DIMENSION</p>
           <h1>Enter a <span>different</span> dimension.</h1>
           <p className="hero-text">A cinematic home for creators, communities and premium video experiences.</p>
-          <div className="actions"><button className="primary-button">Explore experiences</button><button className="secondary-button">Become a creator</button></div>
+          <div className="actions">
+            <a className="primary-button" href="/discover">Explore experiences</a>
+            <a className="secondary-button" href="/creators">Become a creator</a>
+          </div>
           <div className="signal"><i /> Platform status <b>ONLINE</b><em>•</em> Privacy-first</div>
         </div>
         <div className="orb" aria-hidden="true"><div className="orb-core" /><div className="orb-ring ring-a" /><div className="orb-ring ring-b" /><div className="orb-ring ring-c" /></div>
       </section>
+
       <section id="discover" className="section">
-        <div className="section-heading"><div><p className="eyebrow">DISCOVER</p><h2>Trending experiences</h2></div><button className="filter">For you ↗</button></div>
+        <div className="section-heading"><div><p className="eyebrow">DISCOVER</p><h2>Published experiences</h2></div><a className="filter" href="/discover">View all ↗</a></div>
+        {error && <p className="error">{error}</p>}
         <div className="cards">
-          {experiences.map((item) => (
-            <article className={"experience " + item.tone} key={item.title}>
-              <div className="video-surface"><span className="play">▶</span><span className="duration">{item.meta}</span><span className="demo">DEMO MEDIA</span></div>
-              <div className="card-copy"><div><h3>{item.title}</h3><p>{item.creator}</p></div><span className="arrow">↗</span></div>
-            </article>
-          ))}
+          {loading ? (
+            <div className="auth-card"><p className="eyebrow">DISCOVER</p><h2>Loading experiences…</h2></div>
+          ) : experiences.length === 0 ? (
+            <div className="auth-card"><p className="eyebrow">DISCOVER</p><h2>No published experiences yet.</h2><p>Verified creators and published media will appear here when available.</p></div>
+          ) : (
+            experiences.map((item, index) => (
+              <a className={"experience " + ["violet", "cyan", "rose"][index % 3]} key={item.id} href={"/media/" + item.id}>
+                <div className="video-surface"><span className="play">▶</span><span className="demo">{item.access_level}</span></div>
+                <div className="card-copy"><div><h3>{item.title}</h3><p>{item.creator.display_name}</p></div><span className="arrow">↗</span></div>
+              </a>
+            ))
+          )}
         </div>
       </section>
-      <section id="creators" className="creator-strip"><div><p className="eyebrow">BUILT FOR CREATORS</p><h2>Your audience. Your rules.</h2></div><p>Subscriptions, premium drops, private messages and transparent earnings — designed around the people making the work.</p></section>
+
+      <section id="creators" className="creator-strip">
+        <div><p className="eyebrow">BUILT FOR CREATORS</p><h2>Your audience. Your rules.</h2></div>
+        <p>Subscriptions, premium drops, private messages and transparent earnings — designed around the people making the work.</p>
+      </section>
       <footer><span>LOLLIPOP © 2026</span><span>18+ • Verified adults only • Safety & privacy by design</span></footer>
     </main>
   );
