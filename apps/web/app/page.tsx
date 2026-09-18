@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
+import { API, readJson } from "./api-client";
 
 type Creator = {
   id: number;
@@ -31,12 +31,12 @@ export default function Home() {
     async function load() {
       try {
         const creatorsResponse = await fetch(API + "/api/v1/creators");
-        const creators = await creatorsResponse.json();
+        const creators = await readJson(creatorsResponse);
         if (!creatorsResponse.ok) throw new Error(creators.detail ?? "Could not load experiences.");
         const creatorList = creators as Creator[];
         const results = await Promise.all(creatorList.map(async creator => {
           const response = await fetch(API + "/api/v1/creators/" + creator.id + "/media");
-          const data = await response.json();
+          const data = await readJson(response);
           if (!response.ok) throw new Error(data.detail ?? "Could not load creator media.");
           return (data as Media[]).map(media => ({ ...media, creator }));
         }));
