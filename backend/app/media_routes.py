@@ -10,6 +10,7 @@ from .config import settings
 from .db import get_db
 from .entities import AuditLog, ConsentRecord, Media, User
 from .media_storage import ALLOWED_VIDEO_TYPES, delete_private_upload, new_storage_key, validate_video_signature, write_private_upload
+from .subscription_routes import can_view_media
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
@@ -120,7 +121,7 @@ def get_media(media_id: int, user: User = Depends(current_user), db: Session = D
     media = db.get(Media, media_id)
     if not media:
         raise HTTPException(404, "Media not found")
-    if media.creator_id != user.id and user.role != "ADMIN":
+    if not can_view_media(db, user, media):
         if media.status != "PUBLISHED":
             raise HTTPException(404, "Media not found")
         raise HTTPException(403, "Entitlement is required to access this media")
