@@ -1,0 +1,22 @@
+{
+  "name": "Lollipop",
+  "short_name": "Lollipop",
+  "description": "Enter the next dimension.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#0A0E18",
+  "theme_color": "#0A0E18",
+  "lang": "en",
+  "categories": ["entertainment", "social"],
+  "icons": [
+    {
+      "src": "/icons/lollipop.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
