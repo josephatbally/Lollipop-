@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { API, readJson } from "./api-client";
@@ -33,7 +34,7 @@ export default function Home() {
         const creatorsResponse = await fetch(API + "/api/v1/creators");
         const creators = await readJson(creatorsResponse);
         if (!creatorsResponse.ok) throw new Error(creators.detail ?? "Could not load experiences.");
-        const creatorList = creators as Creator[];
+        const creatorList = Array.isArray(creators) ? creators as Creator[] : Array.isArray(creators?.value) ? creators.value as Creator[] : [];
         const results = await Promise.all(creatorList.map(async creator => {
           const response = await fetch(API + "/api/v1/creators/" + creator.id + "/media");
           const data = await readJson(response);
