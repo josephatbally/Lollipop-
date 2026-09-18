@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, String, Text, ForeignKey
+from sqlalchemy import DateTime, String, Text, ForeignKey, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -26,6 +26,31 @@ class CreatorApplication(Base):
     review_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class Media(Base):
+    __tablename__ = "media"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    original_filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    storage_key: Mapped[str] = mapped_column(String(500), unique=True)
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    checksum_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(30), default="SCANNING", index=True)
+    moderation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class ConsentRecord(Base):
+    __tablename__ = "consent_records"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    media_id: Mapped[int] = mapped_column(ForeignKey("media.id", ondelete="CASCADE"), index=True)
+    participant_reference: Mapped[str] = mapped_column(String(255))
+    authorization_version: Mapped[str] = mapped_column(String(100))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
