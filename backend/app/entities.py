@@ -39,6 +39,7 @@ class Media(Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     checksum_sha256: Mapped[str] = mapped_column(String(64), index=True)
     status: Mapped[str] = mapped_column(String(30), default="SCANNING", index=True)
+    access_level: Mapped[str] = mapped_column(String(30), default="SUBSCRIBERS")
     moderation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -61,7 +62,6 @@ class AuditLog(Base):
     target_id: Mapped[str] = mapped_column(String(80))
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
 
 class CreatorSubscriptionPlan(Base):
     __tablename__ = "creator_subscription_plans"
