@@ -6,6 +6,7 @@ from .auth_routes import router as auth_router
 from .db import Base, engine
 from . import entities
 from .media_routes import router as media_router
+from .subscription_routes import router as subscription_router
 from .routes import router
 
 @asynccontextmanager
@@ -19,6 +20,7 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(media_router)
+app.include_router(subscription_router)
 
 @app.get("/")
 def root() -> dict[str, str]:
