@@ -52,7 +52,7 @@ def upload(user):
 def test_customer_cannot_upload():
     user = make_user("customer@example.com")
     response = upload(user)
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 def test_unverified_creator_cannot_upload():
     user = make_creator("applicant@example.com", verified=False)
