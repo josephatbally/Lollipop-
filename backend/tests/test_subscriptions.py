@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.db import Base, engine, SessionLocal
-from backend.app.entities import User, Subscription
+from backend.app.entities import CreatorApplication, User, Subscription
 from backend.app.security import create_access_token, hash_password
 from backend.app.config import settings
 
@@ -20,7 +20,17 @@ def auth(user):
 def make_user(email, role="CUSTOMER"):
     db = SessionLocal()
     user = User(email=email, password_hash=hash_password("password123"), role=role)
-    db.add(user); db.commit(); db.refresh(user); db.close()
+    db.add(user); db.commit(); db.refresh(user)
+    if role == "CREATOR":
+        db.add(CreatorApplication(
+            user_id=user.id,
+            display_name="Creator",
+            handle=email.split("@")[0],
+            status="APPROVED",
+            verification_status="VERIFIED",
+        ))
+        db.commit()
+    db.close()
     return user
 
 def make_video():
