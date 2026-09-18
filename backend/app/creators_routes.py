@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from datetime import datetime\n\nfrom fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .db import get_db
@@ -29,7 +29,7 @@ class CreatorMediaOut(BaseModel):
     content_type: str
     size_bytes: int
     access_level: str
-    created_at: object
+    created_at: datetime
 
 
 class CreatorProfileOut(CreatorSummaryOut):
@@ -37,7 +37,7 @@ class CreatorProfileOut(CreatorSummaryOut):
 
 
 @router.get("", response_model=list[CreatorSummaryOut])
-def list_creators(db: Session = __import__("fastapi").Depends(get_db)):
+def list_creators(db: Session = Depends(get_db)):
     rows = db.execute(
         select(User, CreatorApplication, CreatorSubscriptionPlan)
         .join(CreatorApplication, CreatorApplication.user_id == User.id)
@@ -86,7 +86,7 @@ def get_creator(creator_id: int, db: Session = __import__("fastapi").Depends(get
 
     user, application, plan = row
     media_count = db.scalar(
-        select(__import__("sqlalchemy").func.count(Media.id)).where(
+        select(func.count(Media.id)).where(
             Media.creator_id == creator_id,
             Media.status == "PUBLISHED",
         )
