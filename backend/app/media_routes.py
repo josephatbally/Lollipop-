@@ -1,19 +1,28 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
 from .auth import admin_user, current_user
 from .config import settings
 from .db import get_db
 from .entities import AuditLog, ConsentRecord, Media, User
-from .media_storage import ALLOWED_VIDEO_TYPES, delete_private_upload, new_storage_key, validate_video_signature, write_private_upload
+from .media_storage import (
+    ALLOWED_VIDEO_TYPES,
+    delete_private_upload,
+    new_storage_key,
+    validate_video_signature,
+    write_private_upload,
+)
 from .subscription_routes import can_view_media
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
+
 
 class MediaOut(BaseModel):
     id: int
@@ -25,32 +34,47 @@ class MediaOut(BaseModel):
     size_bytes: int
     checksum_sha256: str
     status: str
+    access_level: str
     moderation_reason: str | None
     created_at: datetime
     reviewed_at: datetime | None
+
 
 class ConsentIn(BaseModel):
     participant_reference: str = Field(min_length=1, max_length=255)
     authorization_version: str = Field(min_length=1, max_length=100)
 
+
 class RejectIn(BaseModel):
     reason: str = Field(min_length=1, max_length=2000)
+
 
 def _out(media: Media) -> MediaOut:
     return MediaOut.model_validate(media, from_attributes=True)
 
-def _audit(db: Session, actor: User | None, action: str, media: Media, metadata: dict | None = None):
-    db.add(AuditLog(
-        actor_user_id=actor.id if actor else None,
-        action=action,
-        target_type="MEDIA",
-        target_id=str(media.id),
-        metadata_json=json.dumps(metadata or {}),
-    ))
+
+def _audit(
+    db: Session,
+    actor: User | None,
+    action: str,
+    media: Media,
+    metadata: dict | None = None,
+):
+    db.add(
+        AuditLog(
+            actor_user_id=actor.id if actor else None,
+            action=action,
+            target_type="MEDIA",
+            target_id=str(media.id),
+            metadata_json=json.dumps(metadata or {}),
+        )
+    )
+
 
 def _require_creator(user: User):
     if user.role != "CREATOR" or user.status != "ACTIVE":
         raise HTTPException(403, "Approved creator access is required")
+
 
 def _private_media_path(storage_key: str) -> Path:
     root = Path(settings.media_storage_path).resolve()
@@ -61,12 +85,16 @@ def _private_media_path(storage_key: str) -> Path:
         raise HTTPException(404, "Media not found")
     return candidate
 
+
 def _require_media_entitlement(db: Session, user: User, media: Media) -> None:
-    if can_view_media(db, user, media):
+    if user.role == "ADMIN":
         return
     if media.status != "PUBLISHED":
         raise HTTPException(404, "Media not found")
+    if can_view_media(db, user, media):
+        return
     raise HTTPException(403, "Entitlement is required to access this media")
+
 
 @router.post("/upload", response_model=MediaOut, status_code=201)
 def upload_media(
@@ -118,11 +146,24 @@ def upload_media(
     db.add(media)
     db.flush()
     for item in consent_items:
-        db.add(ConsentRecord(media_id=media.id, participant_reference=item.participant_reference, authorization_version=item.authorization_version))
-    _audit(db, user, "MEDIA_UPLOADED_FOR_REVIEW", media, {"filename": media.original_filename, "size_bytes": size})
+        db.add(
+            ConsentRecord(
+                media_id=media.id,
+                participant_reference=item.participant_reference,
+                authorization_version=item.authorization_version,
+            )
+        )
+    _audit(
+        db,
+        user,
+        "MEDIA_UPLOADED_FOR_REVIEW",
+        media,
+        {"filename": media.original_filename, "size_bytes": size},
+    )
     db.commit()
     db.refresh(media)
     return _out(media)
+
 
 @router.get("", response_model=list[MediaOut])
 def list_my_media(user: User = Depends(current_user), db: Session = Depends(get_db)):
@@ -132,6 +173,7 @@ def list_my_media(user: User = Depends(current_user), db: Session = Depends(get_
     if user.role != "ADMIN":
         query = query.where(Media.creator_id == user.id)
     return [_out(row) for row in db.scalars(query).all()]
+
 
 @router.get("/{media_id}/stream")
 def stream_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
@@ -144,6 +186,7 @@ def stream_media(media_id: int, user: User = Depends(current_user), db: Session 
         raise HTTPException(404, "Media not found")
     return FileResponse(media_path, media_type=media.content_type)
 
+
 @router.get("/{media_id}", response_model=MediaOut)
 def get_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     media = db.get(Media, media_id)
@@ -151,6 +194,7 @@ def get_media(media_id: int, user: User = Depends(current_user), db: Session = D
         raise HTTPException(404, "Media not found")
     _require_media_entitlement(db, user, media)
     return _out(media)
+
 
 @router.post("/{media_id}/approve", response_model=MediaOut)
 def approve_media(media_id: int, admin: User = Depends(admin_user), db: Session = Depends(get_db)):
@@ -169,6 +213,7 @@ def approve_media(media_id: int, admin: User = Depends(admin_user), db: Session 
     db.refresh(media)
     return _out(media)
 
+
 @router.post("/{media_id}/reject", response_model=MediaOut)
 def reject_media(media_id: int, data: RejectIn, admin: User = Depends(admin_user), db: Session = Depends(get_db)):
     media = db.get(Media, media_id)
@@ -183,6 +228,7 @@ def reject_media(media_id: int, data: RejectIn, admin: User = Depends(admin_user
     db.commit()
     db.refresh(media)
     return _out(media)
+
 
 @router.post("/{media_id}/publish", response_model=MediaOut)
 def publish_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
