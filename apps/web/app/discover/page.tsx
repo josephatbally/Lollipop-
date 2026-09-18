@@ -38,7 +38,7 @@ export default function DiscoverPage() {
   return (
     <main className="shell page">
       <nav className="nav">
-        <a className="brand" href="/">◉ LOLLIPOP</a>
+        <a className="brand" href="/" aria-label="Lollipop home"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></a>
         <div className="nav-links"><a href="/discover">Discover</a><a href="/creators">Creators</a><a href="/account">Account</a></div>
         <a className="ghost-button" href="/login">Sign in</a>
       </nav>
