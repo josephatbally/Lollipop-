@@ -6,22 +6,19 @@ from fastapi.testclient import TestClient
 
 from backend.app.config import settings
 from backend.app.db import Base, SessionLocal, engine
-from backend.app.entities import User
+from backend.app.entities import User, CreatorApplication
 from backend.app.main import app
 from backend.app.security import create_access_token, hash_password
 
 client = TestClient(app)
-
 
 def setup_function():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(settings.media_storage_path, ignore_errors=True)
 
-
 def auth(user):
     return {"Authorization": "Bearer " + create_access_token(user.id, user.role)}
-
 
 def make_user(email, role="CUSTOMER"):
     db = SessionLocal()
@@ -32,6 +29,19 @@ def make_user(email, role="CUSTOMER"):
     db.close()
     return user
 
+def make_creator(email, verified=True):
+    user = make_user(email, "CREATOR")
+    db = SessionLocal()
+    db.add(CreatorApplication(
+        user_id=user.id,
+        display_name="Creator",
+        handle=email.split("@")[0],
+        status="APPROVED" if verified else "SUBMITTED",
+        verification_status="VERIFIED" if verified else "PENDING",
+    ))
+    db.commit()
+    db.close()
+    return user
 
 def upload(creator, title="Queue Video"):
     consent = json.dumps([
@@ -44,15 +54,13 @@ def upload(creator, title="Queue Video"):
         files={"file": ("queue.mp4", io.BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00" * 32), "video/mp4")},
     )
 
-
 def test_customer_cannot_read_media_moderation_queue():
     customer = make_user("customer@example.com")
     response = client.get("/api/v1/admin/media", headers=auth(customer))
     assert response.status_code == 403
 
-
 def test_admin_queue_returns_review_media_oldest_first_without_participant_details():
-    creator = make_user("creator@example.com", "CREATOR")
+    creator = make_creator("creator@example.com")
     first = upload(creator, "First")
     second = upload(creator, "Second")
     assert first.status_code == 201
