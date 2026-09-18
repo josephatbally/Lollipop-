@@ -11,9 +11,13 @@ from backend.app.config import settings
 client = TestClient(app)
 
 def setup_function():
-    Base.metadata.drop_all(bind=engine)
+    settings.free_media_access = False
+    Base.metadata.drop_all(bind=engine
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(settings.media_storage_path, ignore_errors=True)
+
+def teardown_function():
+    settings.free_media_access = True
 
 def auth(user):
     return {"Authorization": "Bearer " + create_access_token(user.id, user.role)}
@@ -69,6 +73,16 @@ def test_customer_cannot_access_published_media_without_subscription():
     media_id = publish(creator, admin)
     response = client.get(f"/api/v1/media/{media_id}", headers=auth(customer))
     assert response.status_code == 403
+
+def test_customer_can_access_published_media_during_development_without_subscription():
+    settings.free_media_access = True
+    creator = make_user("creator-dev@example.com", "CREATOR")
+    admin = make_user("admin-dev@example.com", "ADMIN")
+    customer = make_user("customer-dev@example.com")
+    create_plan(creator)
+    media_id = publish(creator, admin)
+    response = client.get(f"/api/v1/media/{media_id}", headers=auth(customer))
+    assert response.status_code == 200
 
 def test_customer_can_access_published_media_with_active_subscription():
     creator = make_user("creator2@example.com", "CREATOR")
