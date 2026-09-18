@@ -1,5 +1,6 @@
 import io, json, shutil
 from datetime import datetime, timezone, timedelta
+from types import SimpleNamespace
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.db import Base, engine, SessionLocal
@@ -30,8 +31,10 @@ def make_user(email, role="CUSTOMER"):
             verification_status="VERIFIED",
         ))
         db.commit()
+    user_id = user.id
+    user_role = user.role
     db.close()
-    return user
+    return SimpleNamespace(id=user_id, role=user_role)
 
 def make_video():
     return b"\x00\x00\x00\x18ftypisom" + b"\x00" * 32
