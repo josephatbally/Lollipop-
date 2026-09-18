@@ -52,7 +52,10 @@ def get_creator_application(user:User=Depends(current_user),db:Session=Depends(g
 @router.post("/creator-application",response_model=CreatorApplicationOut)
 def save_creator_application(data:CreatorApplicationIn,user:User=Depends(current_user),db:Session=Depends(get_db)):
     app=db.scalar(select(CreatorApplication).where(CreatorApplication.user_id==user.id))
-    if app and app.status=="SUBMITTED": raise HTTPException(409,"Application is already submitted")
+    if app and app.status=="SUBMITTED":
+        raise HTTPException(409,"Application is already submitted")
+    if app and app.status=="APPROVED" and app.verification_status=="VERIFIED":
+        raise HTTPException(409,"Approved creator applications cannot be edited")
     existing=db.scalar(select(CreatorApplication).where(CreatorApplication.handle==data.handle))
     if existing and (not app or existing.id!=app.id): raise HTTPException(409,"That handle is already in use")
     if not app: app=CreatorApplication(user_id=user.id,display_name=data.display_name,handle=data.handle,bio=data.bio); db.add(app)
@@ -64,5 +67,9 @@ def submit_creator_application(user:User=Depends(current_user),db:Session=Depend
     app=db.scalar(select(CreatorApplication).where(CreatorApplication.user_id==user.id))
     if not app: raise HTTPException(404,"Create the creator application first")
     if app.status=="SUBMITTED": return app
+    if app.status=="APPROVED" and app.verification_status=="VERIFIED":
+        raise HTTPException(409,"Approved creator applications are already verified")
+    if app.status not in {"DRAFT","REJECTED"}:
+        raise HTTPException(409,"Application is not eligible for submission")
     app.status="SUBMITTED"; app.verification_status="PENDING"; app.submitted_at=datetime.now(timezone.utc)
     db.commit(); db.refresh(app); return app
