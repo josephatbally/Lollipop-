@@ -89,7 +89,8 @@ def test_public_creator_list_returns_verified_active_creators_only():
         verification_status="PENDING",
     ))
     inactive = make_user("inactive@example.com", "CREATOR")
-    inactive.status = "SUSPENDED"
+    inactive_db = db.get(User, inactive.id)
+    inactive_db.status = "SUSPENDED"
     db.add(CreatorApplication(
         user_id=inactive.id,
         display_name="Inactive I.",
