@@ -100,7 +100,7 @@ export default function AdminModerationPage() {
         <Link className="brand" href="/"><img src="/icons/lollipop.svg" alt="" /><span>LOLLIPOP</span></Link>
         <div className="nav-links">
           <a href="/account">Account</a>
-          <a href="/admin/verifications">Verification</a>
+          <a href="/admin/verifications">Verification</a><a href="/admin/moderation">Media</a>
         </div>
       </nav>
 
