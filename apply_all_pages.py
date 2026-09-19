@@ -1133,13 +1133,11 @@ export default function Home() {
       try {
         const creatorsResponse = await fetch(API + "/api/v1/creators");
         const creators = await readJson(creatorsResponse);
-        if (!creatorsResponse.ok) throw new Error(creators.detail ?? "Could not load experiences.");
         const creatorList = Array.isArray(creators) ? creators as Creator[] : Array.isArray(creators?.value) ? creators.value as Creator[] : [];
         const results = await Promise.all(
           creatorList.map(async creator => {
             const response = await fetch(API + "/api/v1/creators/" + creator.id + "/media");
             const data = await readJson(response);
-            if (!response.ok) return [];
             return (data as Media[]).map(media => ({ ...media, creator }));
           })
         );
