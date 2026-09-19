@@ -42,12 +42,10 @@ export default function CreatorProfilePage() {
     Promise.all([
       fetch(API + "/api/v1/creators/" + params.id).then(async (r) => {
         const d = await readJson(r);
-        if (!r.ok) throw new Error(d.detail ?? "Creator not found.");
         return d;
       }),
       fetch(API + "/api/v1/creators/" + params.id + "/media").then(async (r) => {
         const d = await readJson(r);
-        if (!r.ok) throw new Error(d.detail ?? "Could not load media.");
         return d;
       }),
     ])
