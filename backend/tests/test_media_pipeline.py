@@ -128,3 +128,21 @@ def test_rejected_media_cannot_publish():
     client.post(f"/api/v1/media/{media_id}/reject", headers=auth(admin), json={"reason":"Not approved"})
     response = client.post(f"/api/v1/media/{media_id}/publish", headers=auth(creator))
     assert response.status_code == 409
+
+def test_published_media_can_be_streamed_and_downloaded():
+    creator = make_creator("creator-download@example.com")
+    response = upload(creator)
+    media_id = response.json()["id"]
+    admin = make_user("admin-download@example.com", "ADMIN")
+    assert client.post(f"/api/v1/media/{media_id}/approve", headers=auth(admin)).status_code == 200
+    assert client.post(f"/api/v1/media/{media_id}/publish", headers=auth(creator)).status_code == 200
+
+    stream = client.get(f"/api/v1/media/{media_id}/stream", headers=auth(creator))
+    assert stream.status_code == 200
+    assert stream.headers["content-type"].startswith("video/mp4")
+
+    download = client.get(f"/api/v1/media/{media_id}/download", headers=auth(creator))
+    assert download.status_code == 200
+    assert download.headers["content-type"].startswith("video/mp4")
+    assert "attachment" in download.headers.get("content-disposition", "").lower()
+    assert download.content
