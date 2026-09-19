@@ -31,7 +31,6 @@ export default function DiscoverPage() {
     try {
       const response = await fetch(API + "/api/v1/creators");
       const data = await readJson(response);
-      if (!response.ok) throw new Error(data.detail ?? "Could not load creators.");
       const list = Array.isArray(data) ? data : Array.isArray(data?.value) ? data.value : [];
       setCreators(list);
     } catch (err) {
