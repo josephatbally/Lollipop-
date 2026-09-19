@@ -3,7 +3,6 @@ from backend.app.main import app
 from backend.app.db import Base, engine, SessionLocal
 from backend.app.entities import User, CreatorApplication
 from backend.app.security import create_access_token, hash_password
-from sqlalchemy import delete
 
 client = TestClient(app)
 
@@ -38,6 +37,33 @@ def test_admin_can_approve_and_promote_creator():
     assert response.json()["verification_status"] == "VERIFIED"
     assert response.json()["status"] == "APPROVED"
     assert creator.role == "CREATOR"
+    db.close()
+
+def test_admin_rejection_revokes_existing_creator_role():
+    db = SessionLocal()
+    admin = User(email="admin-reject@example.com", password_hash=hash_password("password123"), role="ADMIN")
+    creator = User(email="creator-reject@example.com", password_hash=hash_password("password123"), role="CREATOR")
+    db.add_all([admin, creator]); db.commit(); db.refresh(admin); db.refresh(creator)
+    app_row = CreatorApplication(
+        user_id=creator.id,
+        display_name="Creator",
+        handle="creator_reject",
+        status="SUBMITTED",
+        verification_status="PENDING",
+    )
+    db.add(app_row); db.commit(); db.refresh(app_row)
+
+    response = client.post(
+        f"/api/v1/admin/creator-applications/{app_row.id}/reject",
+        headers=auth(admin),
+        json={"reason":"Verification failed"},
+    )
+
+    assert response.status_code == 200
+    db.refresh(creator)
+    assert creator.role == "CUSTOMER"
+    assert response.json()["status"] == "REJECTED"
+    assert response.json()["verification_status"] == "REJECTED"
     db.close()
 
 def test_creator_cannot_self_verify():

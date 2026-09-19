@@ -9,13 +9,21 @@ from backend.app.config import settings
 
 client = TestClient(app)
 
+
 def setup_function():
+    settings.free_media_access = False
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(settings.media_storage_path, ignore_errors=True)
 
+
+def teardown_function():
+    settings.free_media_access = True
+
+
 def auth(user):
     return {"Authorization": "Bearer " + create_access_token(user.id, user.role)}
+
 
 def make_user(email, role="CUSTOMER"):
     db = SessionLocal()
@@ -23,6 +31,7 @@ def make_user(email, role="CUSTOMER"):
     db.add(user)
     db.commit()
     db.refresh(user)
+
     if role == "CREATOR":
         db.add(CreatorApplication(
             user_id=user.id,
@@ -32,13 +41,16 @@ def make_user(email, role="CUSTOMER"):
             verification_status="VERIFIED",
         ))
         db.commit()
+
     user_id = user.id
     user_role = user.role
     db.close()
     return SimpleNamespace(id=user_id, role=user_role)
 
+
 def make_video():
     return b"\x00\x00\x00\x18ftypisom" + b"PRIVATE-VIDEO-DATA"
+
 
 def publish(creator, admin):
     consent = json.dumps([{"participant_reference": "self", "authorization_version": "v1"}])
@@ -54,6 +66,7 @@ def publish(creator, admin):
     assert client.post(f"/api/v1/media/{media_id}/publish", headers=auth(creator)).status_code == 200
     return media_id
 
+
 def create_plan(creator):
     response = client.put(
         "/api/v1/creators/me/subscription-plan",
@@ -61,6 +74,7 @@ def create_plan(creator):
         json={"price_cents": 1500, "currency": "USD"},
     )
     assert response.status_code == 200
+
 
 def test_customer_without_entitlement_cannot_stream_media():
     creator = make_user("creator@example.com", "CREATOR")
@@ -72,6 +86,7 @@ def test_customer_without_entitlement_cannot_stream_media():
     response = client.get(f"/api/v1/media/{media_id}/stream", headers=auth(customer))
 
     assert response.status_code == 403
+
 
 def test_subscriber_can_stream_private_media():
     creator = make_user("creator2@example.com", "CREATOR")
@@ -88,6 +103,7 @@ def test_subscriber_can_stream_private_media():
     assert response.headers["content-type"].startswith("video/mp4")
     assert response.content == make_video()
 
+
 def test_canceled_subscription_cannot_stream_media():
     creator = make_user("creator3@example.com", "CREATOR")
     admin = make_user("admin3@example.com", "ADMIN")
@@ -101,6 +117,7 @@ def test_canceled_subscription_cannot_stream_media():
     response = client.get(f"/api/v1/media/{media_id}/stream", headers=auth(customer))
 
     assert response.status_code == 403
+
 
 def test_missing_private_file_is_not_exposed():
     creator = make_user("creator4@example.com", "CREATOR")

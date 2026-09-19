@@ -68,26 +68,20 @@ def pending_media_moderation(admin: User = Depends(admin_user), db: Session = De
     for media, creator_email in rows:
         count = db.query(ConsentRecord).filter(ConsentRecord.media_id == media.id).count()
         result.append(MediaModerationOut(
-            id=media.id,
-            creator_id=media.creator_id,
-            creator_email=creator_email,
-            title=media.title,
-            description=media.description,
-            original_filename=media.original_filename,
-            content_type=media.content_type,
-            size_bytes=media.size_bytes,
-            checksum_sha256=media.checksum_sha256,
-            status=media.status,
-            consent_records=count,
-            moderation_reason=media.moderation_reason,
-            created_at=media.created_at,
+            id=media.id, creator_id=media.creator_id, creator_email=creator_email,
+            title=media.title, description=media.description,
+            original_filename=media.original_filename, content_type=media.content_type,
+            size_bytes=media.size_bytes, checksum_sha256=media.checksum_sha256,
+            status=media.status, consent_records=count,
+            moderation_reason=media.moderation_reason, created_at=media.created_at,
             reviewed_at=media.reviewed_at,
         ))
     return result
 
 def _get(app_id: int, db: Session) -> CreatorApplication:
     app = db.get(CreatorApplication, app_id)
-    if not app: raise HTTPException(404, "Creator application not found")
+    if not app:
+        raise HTTPException(404, "Creator application not found")
     return app
 
 def _audit(db: Session, admin: User, action: str, app: CreatorApplication, reason: str | None):
@@ -100,7 +94,8 @@ def approve_creator_application(app_id: int, data: ReviewIn, admin: User = Depen
     if app.status != "SUBMITTED" or app.verification_status != "PENDING":
         raise HTTPException(409, "Application is not pending review")
     user = db.get(User, app.user_id)
-    if not user: raise HTTPException(404, "Applicant account not found")
+    if not user:
+        raise HTTPException(404, "Applicant account not found")
     app.status="APPROVED"; app.verification_status="VERIFIED"; app.review_reason=data.reason
     app.reviewed_at=datetime.now(timezone.utc); user.role="CREATOR"
     _audit(db, admin, "CREATOR_APPLICATION_APPROVED", app, data.reason)
@@ -112,11 +107,15 @@ def reject_creator_application(app_id: int, data: ReviewIn, admin: User = Depend
     app = _get(app_id, db)
     if app.status != "SUBMITTED" or app.verification_status != "PENDING":
         raise HTTPException(409, "Application is not pending review")
-    if not data.reason: raise HTTPException(422, "A rejection reason is required")
+    if not data.reason:
+        raise HTTPException(422, "A rejection reason is required")
     user = db.get(User, app.user_id)
-    if not user: raise HTTPException(404, "Applicant account not found")
+    if not user:
+        raise HTTPException(404, "Applicant account not found")
     app.status="REJECTED"; app.verification_status="REJECTED"; app.review_reason=data.reason
     app.reviewed_at=datetime.now(timezone.utc)
+    if user.role == "CREATOR":
+        user.role = "CUSTOMER"
     _audit(db, admin, "CREATOR_APPLICATION_REJECTED", app, data.reason)
-    db.commit(); db.refresh(app)
+    db.commit(); db.refresh(app); db.refresh(user)
     return _out(app, user)
