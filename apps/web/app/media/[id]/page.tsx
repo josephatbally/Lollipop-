@@ -53,9 +53,8 @@ export default function MediaPage() {
           headers: { Authorization: "Bearer " + token },
         });
         if (!streamResponse.ok) {
-          const detail = await readJson<{ detail?: string }>(streamResponse).catch(() => ({}));
-          throw new Error(detail.detail ?? "Could not load the media stream.");
-        }
+  throw new Error("Could not load the media stream.");
+}
         const blob = await streamResponse.blob();
         objectUrl = URL.createObjectURL(blob);
         if (!cancelled) setStreamUrl(objectUrl);
@@ -82,8 +81,8 @@ export default function MediaPage() {
         headers: { Authorization: "Bearer " + token },
       });
       if (!response.ok) {
-        const detail = await readJson<{ detail?: string }>(response).catch(() => ({}));
-        throw new Error(detail.detail ?? "Download failed.");
+        const detail = await readJson<{ detail?: string }>(response).catch(() => null);
+        throw new Error(detail?.detail ?? "Download failed.");
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -439,3 +438,4 @@ export default function MediaPage() {
     </div>
   );
 }
+
