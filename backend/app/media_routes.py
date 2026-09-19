@@ -192,6 +192,23 @@ def stream_media(media_id: int, user: User = Depends(current_user), db: Session 
     return FileResponse(media_path, media_type=media.content_type)
 
 
+@router.get("/{media_id}/download")
+def download_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    media = db.get(Media, media_id)
+    if not media:
+        raise HTTPException(404, "Media not found")
+    _require_media_entitlement(db, user, media)
+    media_path = _private_media_path(media.storage_key)
+    if not media_path.is_file():
+        raise HTTPException(404, "Media not found")
+    return FileResponse(
+        media_path,
+        media_type=media.content_type,
+        filename=Path(media.original_filename).name,
+        content_disposition_type="attachment",
+    )
+
+
 @router.get("/{media_id}", response_model=MediaOut)
 def get_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     media = db.get(Media, media_id)
