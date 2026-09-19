@@ -43,9 +43,6 @@ export default function MediaPage() {
           headers: { Authorization: "Bearer " + token },
         });
         const metadata = await readJson<Media>(metadataResponse);
-        if (!metadataResponse.ok) {
-          throw new Error((metadata as { detail?: string }).detail ?? "Media is not available.");
-        }
         if (cancelled) return;
         setMedia(metadata);
 
