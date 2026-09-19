@@ -53,8 +53,8 @@ export default function MediaPage() {
           headers: { Authorization: "Bearer " + token },
         });
         if (!streamResponse.ok) {
-  throw new Error("Could not load the media stream.");
-}
+          throw new Error("Could not load the media stream.");
+        }
         const blob = await streamResponse.blob();
         objectUrl = URL.createObjectURL(blob);
         if (!cancelled) setStreamUrl(objectUrl);
