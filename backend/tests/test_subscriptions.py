@@ -12,7 +12,7 @@ client = TestClient(app)
 
 def setup_function():
     settings.free_media_access = False
-    Base.metadata.drop_all(bind=engine
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(settings.media_storage_path, ignore_errors=True)
 

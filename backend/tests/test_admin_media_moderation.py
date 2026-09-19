@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.config import settings
 from backend.app.db import Base, SessionLocal, engine
-from backend.app.entities import User
+from backend.app.entities import CreatorApplication, User
 from backend.app.main import app
 from backend.app.security import create_access_token, hash_password
 
@@ -14,9 +14,14 @@ client = TestClient(app)
 
 
 def setup_function():
+    settings.free_media_access = False
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(settings.media_storage_path, ignore_errors=True)
+
+
+def teardown_function():
+    settings.free_media_access = True
 
 
 def auth(user):
@@ -29,8 +34,23 @@ def make_user(email, role="CUSTOMER"):
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    if role == "CREATOR":
+        db.add(
+            CreatorApplication(
+                user_id=user.id,
+                display_name="Creator",
+                handle=email.split("@")[0],
+                status="APPROVED",
+                verification_status="VERIFIED",
+            )
+        )
+        db.commit()
+
+    user_id = user.id
+    user_role = user.role
     db.close()
-    return user
+    return type("TestUser", (), {"id": user_id, "role": user_role})()
 
 
 def upload(creator, title="Queue Video"):
@@ -41,7 +61,13 @@ def upload(creator, title="Queue Video"):
         "/api/v1/media/upload",
         headers=auth(creator),
         data={"title": title, "consent": consent},
-        files={"file": ("queue.mp4", io.BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00" * 32), "video/mp4")},
+        files={
+            "file": (
+                "queue.mp4",
+                io.BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00" * 32),
+                "video/mp4",
+            )
+        },
     )
 
 

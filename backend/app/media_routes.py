@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .auth import admin_user, current_user
 from .config import settings
 from .db import get_db
-from .entities import AuditLog, ConsentRecord, Media, User
+from .entities import AuditLog, ConsentRecord, CreatorApplication, Media, User
 from .media_storage import (
     ALLOWED_VIDEO_TYPES,
     delete_private_upload,
@@ -71,8 +71,13 @@ def _audit(
     )
 
 
-def _require_creator(user: User):
+def _require_verified_creator(db: Session, user: User):
     if user.role != "CREATOR" or user.status != "ACTIVE":
+        raise HTTPException(403, "Approved creator access is required")
+    application = db.scalar(
+        select(CreatorApplication).where(CreatorApplication.user_id == user.id)
+    )
+    if not application or application.status != "APPROVED" or application.verification_status != "VERIFIED":
         raise HTTPException(403, "Approved creator access is required")
 
 
@@ -105,7 +110,7 @@ def upload_media(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
-    _require_creator(user)
+    _require_verified_creator(db, user)
     if file.content_type not in ALLOWED_VIDEO_TYPES:
         raise HTTPException(415, "Unsupported video type")
     if not file.filename:
@@ -167,11 +172,11 @@ def upload_media(
 
 @router.get("", response_model=list[MediaOut])
 def list_my_media(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    if user.role not in {"CREATOR", "ADMIN"}:
-        raise HTTPException(403, "Creator access is required")
-    query = select(Media).order_by(Media.created_at.desc())
-    if user.role != "ADMIN":
-        query = query.where(Media.creator_id == user.id)
+    if user.role == "ADMIN":
+        query = select(Media).order_by(Media.created_at.desc())
+    else:
+        _require_verified_creator(db, user)
+        query = select(Media).where(Media.creator_id == user.id).order_by(Media.created_at.desc())
     return [_out(row) for row in db.scalars(query).all()]
 
 
@@ -185,6 +190,23 @@ def stream_media(media_id: int, user: User = Depends(current_user), db: Session 
     if not media_path.is_file():
         raise HTTPException(404, "Media not found")
     return FileResponse(media_path, media_type=media.content_type)
+
+
+@router.get("/{media_id}/download")
+def download_media(media_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    media = db.get(Media, media_id)
+    if not media:
+        raise HTTPException(404, "Media not found")
+    _require_media_entitlement(db, user, media)
+    media_path = _private_media_path(media.storage_key)
+    if not media_path.is_file():
+        raise HTTPException(404, "Media not found")
+    return FileResponse(
+        media_path,
+        media_type=media.content_type,
+        filename=Path(media.original_filename).name,
+        content_disposition_type="attachment",
+    )
 
 
 @router.get("/{media_id}", response_model=MediaOut)
@@ -235,6 +257,7 @@ def publish_media(media_id: int, user: User = Depends(current_user), db: Session
     media = db.get(Media, media_id)
     if not media:
         raise HTTPException(404, "Media not found")
+    _require_verified_creator(db, user)
     if media.creator_id != user.id:
         raise HTTPException(403, "Only the owning creator can publish this media")
     if media.status != "APPROVED":

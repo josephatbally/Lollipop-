@@ -1,10 +1,11 @@
-const CACHE_NAME = "lollipop-shell-v1";
+const CACHE_NAME = "lollipop-shell-v2";
 const OFFLINE_URL = "/offline.html";
+const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icons/lollipop.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll([OFFLINE_URL, "/manifest.webmanifest", "/icons/lollipop.svg"]))
+      .then((cache) => cache.addAll(PRECACHE))
       .then(() => self.skipWaiting())
   );
 });
@@ -25,14 +26,16 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_next/")) return;
+  if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL)))
@@ -40,16 +43,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) =>
-      cached ||
-      fetch(request).then((response) => {
-        if (response.ok && url.pathname.startsWith("/icons/")) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      })
-    )
-  );
+  if (url.pathname.startsWith("/_next/") || url.pathname.startsWith("/icons/")) {
+    event.respondWith(
+      caches.match(request).then((cached) =>
+        cached ||
+        fetch(request).then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+      )
+    );
+  }
 });
