@@ -331,7 +331,8 @@ export default function CreatorProfilePage() {
                           fontWeight: 600
                         }}
                       >
-                        {item.locked ? "Unlock" : "Play →"}
+                        {isLocked ? "Unlock" : "Play →"}
+
                       </Link>
                     </div>
                   </div>
